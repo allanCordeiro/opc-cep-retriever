@@ -1,0 +1,65 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "CEP retriever document. Fetch values like address, district and city through cep code.",
+        "title": "CEP Retriever",
+        "termsOfService": "http://www.swagger.io/terms",
+        "contact": {
+            "name": "Allan Cordeiro",
+            "url": "http://www.allancordeiro.com"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/retrieve/{cep}": {
+            "get": {
+                "description": "Find CEP through different providers",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cep retriever"
+                ],
+                "summary": "HandleGet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "cep code",
+                        "name": "cep",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/webserver.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/webserver.Error"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "webserver.Error": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

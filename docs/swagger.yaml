@@ -1,0 +1,44 @@
+basePath: /
+definitions:
+  webserver.Error:
+    properties:
+      message:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: Allan Cordeiro
+    url: http://www.allancordeiro.com
+  description: CEP retriever document. Fetch values like address, district and city
+    through cep code.
+  termsOfService: http://www.swagger.io/terms
+  title: CEP Retriever
+  version: "1.0"
+paths:
+  /retrieve/{cep}:
+    get:
+      description: Find CEP through different providers
+      parameters:
+      - description: cep code
+        in: path
+        name: cep
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/webserver.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/webserver.Error'
+      summary: HandleGet
+      tags:
+      - cep retriever
+swagger: "2.0"
