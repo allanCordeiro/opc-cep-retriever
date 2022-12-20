@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
+	"golang.org/x/sync/errgroup"
 	"log"
 	"net/http"
 	"time"
@@ -15,6 +16,12 @@ import (
 
 type Error struct {
 	Message string `json:"message"`
+}
+
+type Provider struct {
+	providerSvc service.Service
+	providerUrl string
+	ch          chan usecase.OutputDto
 }
 
 // CepHandleGet Find CEP through different providers
@@ -28,71 +35,60 @@ type Error struct {
 // @Failure     500 {object} Error
 // @Router      /retrieve/{cep} [get]
 func CepHandleGet(w http.ResponseWriter, r *http.Request) {
-	apiCepCh := make(chan usecase.OutputDto)
-	viaCepCh := make(chan usecase.OutputDto)
-
 	cepCode := chi.URLParam(r, "cep")
+	g := new(errgroup.Group)
+	providers := []Provider{
+		{
+			providerSvc: impl.NewApiCep(),
+			providerUrl: "https://cdn.apicep.com/file/apicep/cepValue.json",
+			ch:          make(chan usecase.OutputDto),
+		},
+		{
+			providerSvc: impl.NewViaCep(),
+			providerUrl: "https://viacep.com.br/ws/cepValue/json",
+			ch:          make(chan usecase.OutputDto),
+		},
+	}
 
-	apicep := impl.NewApiCep()
-	apiCepUrl := "https://cdn.apicep.com/file/apicep/cepValue.json"
-	go func() {
-		err := retrieveData(apicep, apiCepUrl, cepCode, apiCepCh)
-		if err != nil {
-			if err == vo.ErrCodeIsNotValid {
-				w.WriteHeader(http.StatusBadRequest)
-				errJson := Error{Message: err.Error()}
-				err := json.NewEncoder(w).Encode(errJson)
-				if err != nil {
-					log.Println(err)
-					return
+	for _, p := range providers {
+		g.Go(func() error {
+			err := getCepInfo(p.providerSvc, p.providerUrl, cepCode, p.ch)
+			if err != nil {
+				if err == vo.ErrCodeIsNotValid {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					errJson := Error{Message: err.Error()}
+					err := json.NewEncoder(w).Encode(errJson)
+					if err != nil {
+						log.Println(err)
+						return err
+					}
+					return err
 				}
+			}
+			return nil
+		})
+
+		select {
+		case msg := <-p.ch:
+			w.Header().Set("Content-Type", "application/json")
+			err := json.NewEncoder(w).Encode(msg)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				log.Println(err)
 				return
 			}
-		}
-	}()
-
-	viacep := impl.NewViaCep()
-	viaCepurl := "https://viacep.com.br/ws/cepValue/json"
-	go func() {
-		err := retrieveData(viacep, viaCepurl, cepCode, apiCepCh)
-		if err != nil {
-			if err == vo.ErrCodeIsNotValid {
-				w.WriteHeader(http.StatusBadRequest)
-				errJson := Error{Message: err.Error()}
-				err := json.NewEncoder(w).Encode(errJson)
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				return
-			}
-		}
-	}()
-
-	select {
-	case msg := <-apiCepCh:
-		err := json.NewEncoder(w).Encode(msg)
-		if err != nil {
+			return
+		case <-time.After(time.Second * 2):
 			w.WriteHeader(http.StatusInternalServerError)
-			log.Println(err)
+			log.Println("no provider's response at minimum time")
 			return
 		}
-	case msg := <-viaCepCh:
-		err := json.NewEncoder(w).Encode(msg)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			log.Println(err)
-			return
-		}
-	case <-time.After(time.Second * 2):
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Println("no provider's response at minimum time")
-		return
 	}
 
 }
 
-func retrieveData(service service.Service, url string, cepCode string, outputCh chan usecase.OutputDto) error {
+func getCepInfo(service service.Service, url string, cepCode string, outputCh chan usecase.OutputDto) error {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, time.Second*1)
 	defer cancel()

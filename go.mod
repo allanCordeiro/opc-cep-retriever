@@ -9,6 +9,7 @@ require (
 	github.com/swaggo/http-swagger v1.3.3
 	github.com/swaggo/http-swagger/example/go-chi v0.0.0-20220809182543-c8d62bfd8fdb
 	github.com/swaggo/swag v1.8.1
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 )
 
 require (
