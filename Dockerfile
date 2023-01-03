@@ -2,8 +2,6 @@ FROM golang:1.19.4-alpine AS builder
 
 WORKDIR /usr/src/app
 COPY . .
-
-#RUN go build -o /go/bin/cep-retriever cmd/main.go
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /cep-retriever cmd/main.go
 
 FROM scratch
