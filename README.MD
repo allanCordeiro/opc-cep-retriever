@@ -26,4 +26,4 @@ Para subir o serviço:
 
 ```
 docker compose up -d
-``
+```
